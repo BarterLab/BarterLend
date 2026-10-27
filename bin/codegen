@@ -1,0 +1,3 @@
+#! /bin/bash
+
+node bin/templater/index.ts src/lib/Set.sol.template src/lib/Set.sol

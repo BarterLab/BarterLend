@@ -1,0 +1,39 @@
+name: CI
+
+permissions: {}
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+  FOUNDRY_VERSION: v1.5.1
+  FORK_TEST_CONTRACTS: '^(TestDeployCreditPoolFactoryScript|MorphoMarketV1AdaptiveCurveAdapterForkTest)$'
+
+jobs:
+  check:
+    name: Foundry project
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Show Forge version
+        run: forge --version
+
+      - name: Run Forge build
+        run: forge build src --sizes --optimize
+
+      - name: Run non-fork tests
+        run: forge test --no-match-contract "$FORK_TEST_CONTRACTS" -vvv

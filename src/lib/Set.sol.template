@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.29;
+
+//= for T in [uint64, uint256]
+struct Set${T:CamelCase} {
+    ${T}[] keys;
+    mapping(${T} key => uint256 indexPlusOne) indexByKey;
+}
+
+using Set${T:CamelCase}Lib for Set${T:CamelCase} global;
+
+library Set${T:CamelCase}Lib {
+    function insert(Set${T:CamelCase} storage set, ${T} key) internal returns (bool inserted) {
+        if (set.indexByKey[key] != 0) return false;
+        set.keys.push(key);
+        set.indexByKey[key] = set.keys.length; // index + 1
+        return true;
+    }
+
+    function remove(Set${T:CamelCase} storage set, ${T} key) internal {
+        uint256 indexPlusOne = set.indexByKey[key];
+        if (indexPlusOne == 0) return;
+
+        uint256 index = indexPlusOne - 1;
+        uint256 lastIndex = set.keys.length - 1;
+
+        if (index != lastIndex) {
+            ${T} lastKey = set.keys[lastIndex];
+            set.keys[index] = lastKey;
+            set.indexByKey[lastKey] = indexPlusOne;
+        }
+
+        set.keys.pop();
+        delete set.indexByKey[key];
+    }
+
+    function has(Set${T:CamelCase} storage set, ${T} key) internal view returns (bool) {
+        return set.indexByKey[key] > 0;
+    }
+
+    function count(Set${T:CamelCase} storage set) internal view returns (uint256) {
+        return set.keys.length;
+    }
+
+    function isEmpty(Set${T:CamelCase} storage set) internal view returns (bool) {
+        return set.keys.length == 0;
+    }
+}
+//= end for

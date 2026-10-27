@@ -1,0 +1,35 @@
+{
+  "lib/BokkyPooBahsDateTimeLibrary": {
+    "rev": "1dc26f977c57a6ba3ed6d7c53cafdb191e7e59ae"
+  },
+  "lib/aave-v3-origin": {
+    "tag": {
+      "name": "v3.6.0",
+      "rev": "5a230ec82fcb10afc7fe7cffa8978752fb17aa2b"
+    }
+  },
+  "lib/chainlink-local": {
+    "rev": "cd3bfb8c42716cfb791174314eba2c0d178551b9"
+  },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.15.0",
+      "rev": "0844d7e1fc5e60d77b68e469bff60265f236c398"
+    }
+  },
+  "lib/morpho-blue-irm": {
+    "tag": {
+      "name": "2025-11-24",
+      "rev": "2bce6da3ebe910ceeec963781aa3f4b4322c296e"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "tag": {
+      "name": "v5.5.0",
+      "rev": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
+    }
+  },
+  "lib/permit2": {
+    "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+  }
+}
