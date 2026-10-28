@@ -653,8 +653,7 @@ interface ICreditPool is ICreditPoolTypes {
 
     /// @notice Sets the minimum liquidation discount for future markets.
     /// @dev Only the pool owner may call this method.
-    /// @param newMin Discount fraction, where 1e18 represents 100%. Must not exceed the maximum discount or 10% of
-    /// the gap between 100% and liquidation LTV.
+    /// @param newMin Discount fraction, where 1e18 represents 100%. Must not exceed the maximum discount.
     function setLiquidationDiscountMin(uint256 newMin) external;
 
     /// @notice Returns the maximum liquidation discount applicable to a market.

@@ -1852,7 +1852,7 @@ abstract contract CreditPoolBase is
     }
 
     function _checkLiquidationDiscountMin(uint256 newMin) private view {
-        uint256 max = Math.min((UNIT - _liquidationLTV) * 1 / 10, _liquidationDiscountMax);
+        uint256 max = _liquidationDiscountMax;
 
         if (newMin > max) revert InvalidLiquidationDiscountMin(0, max, newMin);
     }
