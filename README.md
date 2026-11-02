@@ -6,8 +6,8 @@ BarterLend is a non-custodial, overcollateralized fixed-rate, fixed-term lending
 
 | Contracts | Responsibility |
 | --- | --- |
-| [CreditPool](src/CreditPool.sol) | Core lending pool: manages order books, lender claims, borrower debt, collateral, liquidations and granular user delegation. |
-| [CreditPoolBase](src/CreditPoolBase.sol), [CreditPoolFacet1–4](src/facets/) and [Delegator](src/Delegator.sol) | Split the pool's shared logic across four facets similar to [ERC-2535: Diamonds, Multi-Facet Proxy](https://eips.ethereum.org/EIPS/eip-2535). |
+| [CreditPoolBase](src/CreditPoolBase.sol) | Core lending pool: manages order books, lender claims, borrower debt, collateral, liquidations and granular user delegation. |
+| [CreditPool](src/CreditPool.sol), [CreditPoolFacet1–4](src/facets/) and [Delegator](src/Delegator.sol) | Split the pool's shared logic across four facets similar to [ERC-2535: Diamonds, Multi-Facet Proxy](https://eips.ethereum.org/EIPS/eip-2535). |
 | [CreditPoolFactory](src/CreditPoolFactory.sol) | Controls pool deployment. Its configuration must be frozen before pools can be created. |
 | [CreditPoolRolloverExtension](src/CreditPoolRolloverExtension.sol) | Provides opt-in permissionless debt refinancing mechanism for matured markets. |
 | [AaveV3Adapter](src/adapters/AaveV3Adapter.sol) and [MorphoMarketV1AdaptiveCurveAdapter](src/adapters/MorphoMarketV1AdaptiveCurveAdapter.sol) | Deposit unmatched provide orders liquidity in external protocols and value the positions owned by the credit pool. |
