@@ -2,6 +2,7 @@
 pragma solidity ^0.8.29;
 
 import { MockToken } from "test/mocks/MockToken.sol";
+import { Math } from "lib/openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 contract MockPendleToken is MockToken {
     uint8 private immutable tokenDecimals;
@@ -79,5 +80,38 @@ contract MockPendleYT {
         // A static call must not use Pendle's state-changing index path.
         pyIndexStored += 1;
         return pyIndexStored;
+    }
+}
+
+contract MockPendleMarket {
+    address private sy;
+    address private pt;
+    address private yt;
+
+    constructor(address sy_, address pt_, address yt_) {
+        sy = sy_;
+        pt = pt_;
+        yt = yt_;
+    }
+
+    function readTokens() external view returns (address, address, address) {
+        return (sy, pt, yt);
+    }
+
+    function expiry() external view returns (uint256) {
+        return MockPendlePT(pt).expiry();
+    }
+}
+
+contract MockPendleOracle {
+    function getOracleState(address, uint32) external pure returns (bool, uint16, bool) {
+        return (false, 0, true);
+    }
+
+    function getPtToAssetRate(address market, uint32) external view returns (uint256) {
+        (address sy,, address yt) = MockPendleMarket(market).readTokens();
+        uint256 syIndex = MockPendleSY(sy).exchangeRate();
+        uint256 pyIndex = MockPendleYT(yt).pyIndexStored();
+        return syIndex >= pyIndex ? 1e18 : Math.mulDiv(syIndex, 1e18, pyIndex);
     }
 }
