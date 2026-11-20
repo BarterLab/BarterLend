@@ -2,8 +2,23 @@
 pragma solidity ^0.8.29;
 
 import { IPriceOracle } from "src/interfaces/IPriceOracle.sol";
-import { IPendlePrincipalToken, IPendleYieldToken, IPendleStandardizedYield } from "src/interfaces/IPendle.sol";
 import { IERC20Metadata } from "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+interface IPendlePrincipalToken {
+    function SY() external view returns (address);
+    function YT() external view returns (address);
+}
+
+interface IPendleYieldToken {
+    function PT() external view returns (address);
+    function SY() external view returns (address);
+    function pyIndexStored() external view returns (uint256);
+}
+
+interface IPendleStandardizedYield {
+    function assetInfo() external view returns (uint8 assetType, address assetAddress, uint8 assetDecimals);
+    function exchangeRate() external view returns (uint256);
+}
 
 contract PendlePtPriceOracle is IPriceOracle {
     address public immutable source;
