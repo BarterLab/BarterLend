@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import { IPriceOracle } from "src/interfaces/IPriceOracle.sol";
 import { IERC20Metadata } from "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Math } from "lib/openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 interface IPendlePrincipalToken {
     function SY() external view returns (address);
@@ -20,13 +21,30 @@ interface IPendleStandardizedYield {
     function exchangeRate() external view returns (uint256);
 }
 
+interface IPendleMarket {
+    function readTokens() external view returns (address sy, address pt, address yt);
+    function expiry() external view returns (uint256);
+}
+
+interface IPendleOracle {
+    function getPtToAssetRate(address market, uint32 duration) external view returns (uint256);
+    function getOracleState(address market, uint32 duration) external view returns (bool, uint16, bool);
+}
+
 contract PendlePtPriceOracle is IPriceOracle {
+    uint256 private constant UNIT = 1e18;
+
     address public immutable source;
     address public immutable target;
     address public immutable accountingToken;
     address public immutable sy;
     address public immutable yt;
     IPriceOracle public immutable conversionOracle;
+    IPendleOracle public immutable pendleOracle;
+    address public immutable market;
+    uint32 public immutable twapDuration;
+    uint256 public immutable e0;
+    uint256 public immutable e1;
 
     error InvalidPendleToken();
     error UnsupportedAccountingAsset();
@@ -34,8 +52,22 @@ contract PendlePtPriceOracle is IPriceOracle {
     error InvalidIndices();
     error InvalidConversionPrice();
     error OracleFractionOverflow();
+    error InvalidPendleOracle();
+    error InvalidPendleMarket();
+    error InvalidTwapDuration();
+    error InvalidDiscountThresholds();
+    error OracleNotReady();
+    error InvalidMarketPrice();
 
-    constructor(address pt, address conversionOracle_) {
+    constructor(
+        address pt,
+        address conversionOracle_,
+        address pendleOracle_,
+        address market_,
+        uint32 twapDuration_,
+        uint256 e0_,
+        uint256 e1_
+    ) {
         if (pt.code.length == 0) revert InvalidPendleToken();
 
         address sy_ = IPendlePrincipalToken(pt).SY();
@@ -60,12 +92,30 @@ contract PendlePtPriceOracle is IPriceOracle {
             IERC20Metadata(target_).decimals();
         }
 
+        if (pendleOracle_.code.length == 0) revert InvalidPendleOracle();
+        if (market_.code.length == 0) revert InvalidPendleMarket();
+        if (twapDuration_ == 0) revert InvalidTwapDuration();
+        if (e0_ >= e1_ || e1_ > UNIT) revert InvalidDiscountThresholds();
+        {
+            (address marketSy, address marketPt, address marketYt) = IPendleMarket(market_).readTokens();
+            if (marketSy != sy_ || marketPt != pt || marketYt != yt_) revert InvalidPendleMarket();
+        }
+        if (block.timestamp < IPendleMarket(market_).expiry()) {
+            (bool increaseRequired,, bool oldestSatisfied) = IPendleOracle(pendleOracle_).getOracleState(market_, twapDuration_);
+            if (increaseRequired || !oldestSatisfied) revert OracleNotReady();
+        }
+
         source = pt;
         target = target_;
         accountingToken = accountingToken_;
         sy = sy_;
         yt = yt_;
         conversionOracle = IPriceOracle(conversionOracle_);
+        pendleOracle = IPendleOracle(pendleOracle_);
+        market = market_;
+        twapDuration = twapDuration_;
+        e0 = e0_;
+        e1 = e1_;
     }
 
     function getPrice() external view returns (Price memory price) {
@@ -81,6 +131,7 @@ contract PendlePtPriceOracle is IPriceOracle {
             price.numerator = syIndex;
             price.denominator = pyIndex;
         }
+        _applyMarketDiscount(price);
         price.updatedAt = block.timestamp;
 
         if (address(conversionOracle) != address(0)) {
@@ -93,6 +144,21 @@ contract PendlePtPriceOracle is IPriceOracle {
             price.denominator = _mul(price.denominator, conversion.denominator);
             price.updatedAt = conversion.updatedAt;
         }
+    }
+
+    function _applyMarketDiscount(Price memory price) private view {
+        if (price.numerator == 0) return;
+        uint256 backing = Math.mulDiv(price.numerator, UNIT, price.denominator);
+        uint256 loss = UNIT - backing;
+        if (loss <= e0) return;
+
+        uint256 weight = loss >= e1 ? UNIT : Math.mulDiv(loss - e0, UNIT, e1 - e0);
+        uint256 marketPrice = pendleOracle.getPtToAssetRate(market, twapDuration);
+        if (marketPrice > UNIT) revert InvalidMarketPrice();
+
+        // P = (1 - w) * F + w * M; Pendle's M already includes the backing loss.
+        price.numerator = (backing * (UNIT - weight) + marketPrice * weight) / UNIT;
+        price.denominator = UNIT;
     }
 
     function _mul(uint256 left, uint256 right) private pure returns (uint256) {

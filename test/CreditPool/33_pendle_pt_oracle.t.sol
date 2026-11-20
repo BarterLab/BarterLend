@@ -11,7 +11,7 @@ import { MockToken } from "test/mocks/MockToken.sol";
 import { MockAaveToken } from "test/mocks/MockAaveToken.sol";
 import { MockAavePool } from "test/mocks/MockAavePool.sol";
 import { MockPriceOracle } from "test/mocks/MockPriceOracle.sol";
-import { MockPendleToken, MockPendlePT, MockPendleSY, MockPendleYT } from "test/mocks/MockPendle.sol";
+import { MockPendleToken, MockPendlePT, MockPendleSY, MockPendleYT, MockPendleMarket, MockPendleOracle } from "test/mocks/MockPendle.sol";
 
 contract TestCreditPool_pendle_pt_oracle is Test {
     ICreditPool internal pool;
@@ -19,6 +19,8 @@ contract TestCreditPool_pendle_pt_oracle is Test {
     MockPendlePT internal pt;
     MockPendleSY internal sy;
     MockPriceOracle internal conversion;
+    MockPendleMarket internal pendleMarket;
+    MockPendleOracle internal pendleOracle;
     uint64 internal market;
 
     address internal lender = makeAddr("Lender");
@@ -35,7 +37,9 @@ contract TestCreditPool_pendle_pt_oracle is Test {
         MockPendleYT yt = new MockPendleYT(address(pt), address(sy));
         pt.setTokens(address(sy), address(yt));
         conversion = new MockPriceOracle(address(accounting), address(loan));
-        PendlePtPriceOracle oracle = new PendlePtPriceOracle(address(pt), address(conversion));
+        pendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
+        pendleOracle = new MockPendleOracle();
+        PendlePtPriceOracle oracle = new PendlePtPriceOracle(address(pt), address(conversion), address(pendleOracle), address(pendleMarket), 1800, 0.01e18, 0.05e18);
 
         MockAaveToken aToken = new MockAaveToken(loan, 0);
         new MockAavePool(loan, aToken);
@@ -108,17 +112,18 @@ contract TestCreditPool_pendle_pt_oracle is Test {
         assertEq(pool.isLiquidatable(market, borrower), true);
     }
 
-    function test_positive_loss_price_is_used_to_seize_collateral() public {
+    function test_hybrid_price_is_used_to_seize_collateral() public {
         vm.prank(borrower); pool.borrow(borrower, market, 75e18, 90e18);
         sy.setExchangeRate(0.9e18);
+        vm.mockCall(address(pendleOracle), abi.encodeCall(MockPendleOracle.getPtToAssetRate, (address(pendleMarket), uint32(1800))), abi.encode(uint256(0.8e18)));
         vm.prank(liquidator); loan.mint(100e18);
         vm.prank(liquidator); loan.approve(address(pool), 100e18);
         vm.prank(liquidator); ICreditPoolBotAPI(address(pool)).liquidate(market, borrower, 90e18, 0, type(uint256).max, "");
         assertEq(pt.balanceOf(liquidator), 100e18);
-        assertEq(loan.balanceOf(liquidator), 11.8e18);
+        assertEq(loan.balanceOf(liquidator), 21.6e18);
         assertEq(pool.debtOf(market, borrower), 0);
         assertEq(pool.collateralOf(market, borrower), 0);
-        assertEq(pool.loanOf(market, lender), 88.2e18);
+        assertEq(pool.loanOf(market, lender), 78.4e18);
     }
 
     function test_core_rejects_stale_conversion_timestamp() public {
