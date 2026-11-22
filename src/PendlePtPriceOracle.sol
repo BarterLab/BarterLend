@@ -32,7 +32,11 @@ interface IPendleOracle {
 }
 
 contract PendlePtPriceOracle is IPriceOracle {
-    uint256 private constant UNIT = 1e18;
+    // https://docs.pendle.finance/pendle-v2-dev/Contracts/Oracle/PYLpOracle#overview
+    // All rates are expressed as 1e18-scaled fixed-point numbers.
+    // A return value of 0.95e18 means 1 unit of the queried token is
+    // worth 0.95 units of the denominator token.
+    uint256 private constant PENDLE_RATE_UNIT = 1e18;
 
     address public immutable source;
     address public immutable target;
@@ -95,7 +99,7 @@ contract PendlePtPriceOracle is IPriceOracle {
         if (pendleOracle_.code.length == 0) revert InvalidPendleOracle();
         if (market_.code.length == 0) revert InvalidPendleMarket();
         if (twapDuration_ == 0) revert InvalidTwapDuration();
-        if (e0_ >= e1_ || e1_ > UNIT) revert InvalidDiscountThresholds();
+        if (e0_ >= e1_ || e1_ > PENDLE_RATE_UNIT) revert InvalidDiscountThresholds();
         {
             (address marketSy, address marketPt, address marketYt) = IPendleMarket(market_).readTokens();
             if (marketSy != sy_ || marketPt != pt || marketYt != yt_) revert InvalidPendleMarket();
@@ -148,17 +152,17 @@ contract PendlePtPriceOracle is IPriceOracle {
 
     function _applyMarketDiscount(Price memory price) private view {
         if (price.numerator == 0) return;
-        uint256 backing = Math.mulDiv(price.numerator, UNIT, price.denominator);
-        uint256 loss = UNIT - backing;
+        uint256 backing = Math.mulDiv(price.numerator, PENDLE_RATE_UNIT, price.denominator);
+        uint256 loss = PENDLE_RATE_UNIT - backing;
         if (loss <= e0) return;
 
-        uint256 weight = loss >= e1 ? UNIT : Math.mulDiv(loss - e0, UNIT, e1 - e0);
+        uint256 weight = loss >= e1 ? PENDLE_RATE_UNIT : Math.mulDiv(loss - e0, PENDLE_RATE_UNIT, e1 - e0);
         uint256 marketPrice = pendleOracle.getPtToAssetRate(market, twapDuration);
-        if (marketPrice > UNIT) revert InvalidMarketPrice();
+        if (marketPrice > PENDLE_RATE_UNIT) revert InvalidMarketPrice();
 
         // P = (1 - w) * F + w * M; Pendle's M already includes the backing loss.
-        price.numerator = (backing * (UNIT - weight) + marketPrice * weight) / UNIT;
-        price.denominator = UNIT;
+        price.numerator = (backing * (PENDLE_RATE_UNIT - weight) + marketPrice * weight) / PENDLE_RATE_UNIT;
+        price.denominator = PENDLE_RATE_UNIT;
     }
 
     function _mul(uint256 left, uint256 right) private pure returns (uint256) {
