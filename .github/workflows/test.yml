@@ -33,7 +33,7 @@ jobs:
         run: forge --version
 
       - name: Run Forge build
-        run: forge build src --sizes --optimize
+        run: forge build src --sizes --optimize --skip test
 
       - name: Run non-fork tests
         run: forge test --no-match-contract "$FORK_TEST_CONTRACTS" -vvv
